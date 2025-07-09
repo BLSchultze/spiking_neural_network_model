@@ -89,6 +89,7 @@ def plot_raster(df_spkt, neu, id2name=dict(), xlims=(None, None), figsize=(), pa
         fig.savefig(path)
 
 
+
 def plot_rate(df_spkt, neu, xlims, sigma=25, n_trl=30, do_zscore=False, id2name=dict(), figsize=(), path=None):
     '''Plot rates for given experiments and neurons
 
@@ -192,6 +193,8 @@ def plot_rate(df_spkt, neu, xlims, sigma=25, n_trl=30, do_zscore=False, id2name=
     fig.tight_layout()
     if path:
         fig.savefig(path)
+
+
 
 def plot_rate_heatmap(df_spkt, neu, xlims, sigma=25, n_trl=30, do_zscore=False, exclude_stim=False, color_range=(None, None), id2name=dict(), figsize=(), path=None):
     '''Plot rates for given experiments and neurons in a heatmap
@@ -301,6 +304,7 @@ def plot_rate_heatmap(df_spkt, neu, xlims, sigma=25, n_trl=30, do_zscore=False, 
         fig.savefig(path)
 
 
+
 def firing_rate_matrix(df_rate, rate_change=False, scaling=.5, path='', id2name={}):
     '''Plot heatmap showing the firing rates of neurons in different experiments
  
@@ -351,3 +355,85 @@ def firing_rate_matrix(df_rate, rate_change=False, scaling=.5, path='', id2name=
     if path:
         fig.savefig(path)
         plt.close(fig)
+
+
+
+def plot_isi_hist(df_spkt, neu, id2name=dict(), xlims=None, figsize=(), path=None, bins=20):
+    '''Plot inter-spike-intervals for given experiments and neurons
+
+    Parameters
+    ----------
+    df_spkt : pd.DataFrame
+        Each row contains a spike event
+    neu : list
+        List of database IDs as appearing in df_spkt.
+        `neu` can also contain custom neuron names, but in this case `name2id`
+        must be supplied
+    id2name : dict, optional
+        Mapping between database IDs and neuron types, by default dict()
+    xlims : tuple, optional
+        xlims for plot, by default None
+    figsize : tuple, optional
+        dimension of the plot, passed to plt.subpolots
+    path : str, optional
+        Filename for saving the plot, by default None
+    bins : int | array | list
+        bin count for the histogram or list/array with bin edges
+    '''
+
+    exp = df_spkt.loc[:, 'exp_name'].unique()
+    n_exp, n_neu = len(exp), len(neu)
+
+    if figsize:
+        dx, dy = figsize
+    else:
+        dx, dy = 3*n_neu, 2*n_exp
+    print('INFO: setting figsize to ({}, {})'.format(dx, dy))
+
+    fig, axmat = plt.subplots(ncols=n_neu, nrows=n_exp, squeeze=False, figsize=(dx, dy))
+
+    # Add names to the data frame
+    df_spkt['name'] = df_spkt['database_id'].map(lambda l: id2name.get(l, l))
+
+    for i, (e, df_exp) in enumerate(df_spkt.groupby('exp_name')):
+        # Group by database ID
+        gr_neu = df_exp.groupby('database_id')
+
+        # Iterate over the requested neurons
+        for j, n in enumerate(neu):
+            ax = axmat[i,j]
+            idx = int(n)
+            try:
+                # Get data for current neuron
+                df_neu = gr_neu.get_group(idx)
+                # Calculate inter-spike-intervals for all trials
+                spike_intervals = np.hstack([ np.diff(np.sort(df_trl['t'])) for _, df_trl in df_neu.groupby('trial') ]) * 1000     # convert to ms
+                
+                if spike_intervals.shape[0] > 0:
+                    # Calculate histogram
+                    hist, hist_edges = np.histogram(spike_intervals, bins, density=True) 
+                    # Plot histogram as curve
+                    ax.plot(hist_edges[:-1], hist)
+
+            except KeyError:
+                pass
+            
+            # formatting
+            if j == 0:
+                ax.set_ylabel(e)
+            else:
+                ax.set_yticklabels('')
+                
+            if i == 0:
+                ax.set_title(id2name.get(n, n))
+
+            ax.grid(None)
+            if xlims != None:
+                ax.set_xlim(xlims)           
+
+    for ax in axmat[-1]:
+        ax.set_xlabel('inter-spike-interval [ms]')
+    fig.tight_layout()
+
+    if path:
+        fig.savefig(path)
