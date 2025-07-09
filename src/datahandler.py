@@ -276,7 +276,7 @@ def create_name_dict(path_name, ds_ids, sheets_pair, sheets_single):
 
 
 
-def useful_mappings1(id2name, ds_ids):
+def useful_mappings(id2name, ds_ids):
     '''Generate other useful mappings between custom names, database IDs
     and canonical IDs (starting with 0, will be equivalent to brian neuron IDs)
 
