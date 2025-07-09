@@ -104,11 +104,24 @@ def silence(slnc, syn):
         List of neuron indices to silence
     syn : brian2.Synapses
         Defined synapses object
-    '''
 
+    Returns
+    -------
+    syn: brian2.Synapses
+        altered synapses object
+    '''
+    # Store the current synaptic weights for possible later restoring
+    try: 
+        syn.add_attribute('w_old')
+        syn.w_old = syn.w / mV 
+    except AttributeError:
+        print('Initial synaptic weights already saved. They will not be overwritten!')
+    # Set synaptic weights to zero (incoming and outgoing)
     for i_neu in slnc:
         syn.w[' {} == i'.format(i_neu)] = 0*mV
         syn.w[' {} == j'.format(i_neu)] = 0*mV
+    
+    return syn
     
 
 def create_model(ds_ids, df_con, params):
@@ -306,6 +319,18 @@ def run_trial(df_inst, ds_ids, df_con, params):
             syn = silence(ids, syn)
         elif mode == 'end':
             break
+        elif mode == 'stim_off':
+            # Remove Poisson inputs from the network (not specific, affects all stimulated neurons)
+            try:
+                # Remove objects from network
+                net.remove(*poi_inp)
+                # Restore synaptic weights
+                neu.rfc[neu.rfc != params['t_rfc']] = params['t_rfc']
+            except KeyError:
+                print("No stimulation to remove!")
+        elif mode == 'slnc_off':
+            # Reverse silencing of neurons (not specific, affects all neurons)
+            syn.w = syn.w_old * mV
         else:
             raise NotImplementedError(f'Cannot interpret instruction {mode}')
 
@@ -318,7 +343,7 @@ def run_trial(df_inst, ds_ids, df_con, params):
     return spk_trn
 
 
-def run_exp(exp_name, exp_inst, path_res, ds_ids, df_con, params=default_params, name2id=dict(), n_trl=30, force_overwrite=False, n_proc=-1,):
+def run_exp(exp_name, exp_inst, path_res, ds_ids, df_con, params=default_params, id2name=dict(), n_trl=30, force_overwrite=False, n_proc=-1):
     '''
     Run default network experiment with PoissonInputs as external input.
     Neurons chosen as Poisson sources spike with a default rate of 150 Hz
@@ -338,12 +363,12 @@ def run_exp(exp_name, exp_inst, path_res, ds_ids, df_con, params=default_params,
             Dataframe with connectivity information in canonical IDs
         params : dict
             Constants and equations that are used to construct the brian2 network model
-        name2id : dict
+        id2name : dict
             Mapping between custom neuron names and database IDs
         n_trl : int, optional
             Number of trials, by default 30
         force_overwrite : bool, optional
-            If True, overwrite output files, by defaul False
+            If True, overwrite output files, by default False
         n_proc : int
             number of cores to be used for parallel runs
             default: -1 (use all available cores)
@@ -366,10 +391,10 @@ def run_exp(exp_name, exp_inst, path_res, ds_ids, df_con, params=default_params,
             return
 
     # load name/id mappings
-    _, _, i2id, _, _, name_id2i = useful_mappings(name2id, ds_ids)
+    id2i, i2id, _ = useful_mappings(id2name, ds_ids)
 
     # generate instructions
-    df_inst = get_df_inst(exp_inst, name2i=name_id2i)
+    df_inst = get_df_inst(exp_inst, name2i=id2i)
 
     # print info
     print('>>> Experiment:     {}'.format(exp_name))
@@ -378,7 +403,7 @@ def run_exp(exp_name, exp_inst, path_res, ds_ids, df_con, params=default_params,
     print('    Instructions:')
     for i in df_inst.index:
         t, n, m = df_inst.loc[i, ['t', 'name', 'mode']]
-        print('{:>12} | {:>5} | {}'.format(t, m, ' '.join([str(j) for j in n])))
+        print('{:>12} | {:>8} | {}'.format(t, m, ' '.join([str(j) for j in n])))
 
     # start time for simulation
     start = time() 
@@ -402,8 +427,7 @@ def run_exp(exp_name, exp_inst, path_res, ds_ids, df_con, params=default_params,
     # store experiment metadata
     data = {
         'exp_name':   exp_name,
-        'name2id':   name2id,
-        'name_id2i': name_id2i,
+        'id2name':   id2name,
         'df_inst':   df_inst,
         'n_trl':     n_trl,
         'path_res':  str(path_res),

@@ -274,7 +274,9 @@ def create_name_dict(path_name, ds_ids, sheets_pair, sheets_single):
 
     return name2id
 
-def useful_mappings(name2id, ds_ids):
+
+
+def useful_mappings1(id2name, ds_ids):
     '''Generate other useful mappings between custom names, database IDs
     and canonical IDs (starting with 0, will be equivalent to brian neuron IDs)
 
@@ -287,28 +289,17 @@ def useful_mappings(name2id, ds_ids):
 
     Returns
     -------
-    id2name : dict
-        Inverted name2id dictionary
     id2i : dict
         Mapping between database IDs and canonical IDs
     i2id : dict
         Inverted id2i dictionary
-    name2i : dict
-        Mapping between custom neuron names and canonical IDs
     i2name : dict
-        Inverted name2s dictionary
-    name_or_id2i : dict
-        Mapping of custom neuron names and database IDs to canonical IDs
+        Inverted name2i dictionary
     '''
-
-    id2name = { j: i for i, j in name2id.items() } # database ID: custom name
 
     i2id = ds_ids.to_dict() # canonical (i.e. brian) ID: database ID
     id2i = {j: i for i, j in i2id.items()} # brian ID: database ID
 
-    name2i = {i: id2i[j] for i, j in name2id.items() } # custom name: brian ID
-    i2name = {j: i for i, j in name2i.items() } # brian ID: custom name
+    i2name = {i: id2name[j] for i, j in i2id.items() } # brian ID: neuron type
 
-    name_or_id2i = name2i | id2i # union of dicts
-
-    return id2name, id2i, i2id, name2i, i2name, name_or_id2i
+    return id2i, i2id, i2name

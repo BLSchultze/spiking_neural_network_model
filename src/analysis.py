@@ -118,7 +118,9 @@ def get_rate(df, duration, n_trl=30):
 
     return df_rate, df_std
 
-def rename_index(df, name2id):
+
+
+def rename_index(df, id2name):
     '''Rename database IDs to custom neuron names in index
     Also sort index and columns
 
@@ -136,7 +138,6 @@ def rename_index(df, name2id):
     '''
 
     # replace database IDs with custom names
-    id2name = {v: k for k, v in name2id.items()}
     df = df.rename(index=id2name)
 
     # sort: str first (i.e. custom names), then int (i.e. database IDs)
@@ -147,6 +148,8 @@ def rename_index(df, name2id):
         ]
     
     return df
+
+
 
 def save_xls(df, path):
     '''Save DataFrame as xls file

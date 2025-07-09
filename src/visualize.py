@@ -10,7 +10,9 @@ import seaborn as sns
 sns.set_style('whitegrid')
 plt.rcParams['savefig.facecolor'] = 'w'
 
-def plot_raster(df_spkt, neu, name2id=dict(), xlims=(None, None), figsize=(), path=None):
+
+
+def plot_raster(df_spkt, neu, id2name=dict(), xlims=(None, None), figsize=(), path=None):
     '''Plot raster plots for given experiments and neurons
 
     Parameters
@@ -21,8 +23,8 @@ def plot_raster(df_spkt, neu, name2id=dict(), xlims=(None, None), figsize=(), pa
         List of database IDs as appearing in df_spkt.
         `neu` can also contain custom neuron names, but in this case `name2id`
         must be supplied
-    name2id : dict, optional
-        Mapping betwen custon neuron names and database IDs, by default dict()
+    id2name : dict, optional
+        Mapping between database IDs and neuron types, by default dict()
     xlims : tuple, optional
         xlims for plot, by default (None, None)
     figsize : tuple, optional
@@ -42,6 +44,9 @@ def plot_raster(df_spkt, neu, name2id=dict(), xlims=(None, None), figsize=(), pa
 
     fig, axmat = plt.subplots(ncols=n_neu, nrows=n_exp, squeeze=False, figsize=(dx, dy))
 
+    # Add names to the data frame
+    df_spkt['name'] = df_spkt['database_id'].map(lambda l: id2name.get(l, l))
+
     for i, (e, df_exp) in enumerate(df_spkt.groupby('exp_name')):
 
         trl_max = df_exp.max()['trial'] # for axis limits
@@ -50,8 +55,7 @@ def plot_raster(df_spkt, neu, name2id=dict(), xlims=(None, None), figsize=(), pa
         for j, n in enumerate(neu):
             ax = axmat[i,j]
 
-            idx = name2id.get(n, n)
-            idx = int(idx)
+            idx = int(n)
 
             try:
                 df_neu = gr_neu.get_group(idx)
@@ -70,7 +74,7 @@ def plot_raster(df_spkt, neu, name2id=dict(), xlims=(None, None), figsize=(), pa
                 ax.set_yticklabels('')
                 
             if i == 0:
-                ax.set_title(n)
+                ax.set_title(id2name.get(n, n))
 
             ax.grid(None)
             ax.set_xlim(xlims)
@@ -85,7 +89,7 @@ def plot_raster(df_spkt, neu, name2id=dict(), xlims=(None, None), figsize=(), pa
         fig.savefig(path)
 
 
-def plot_rate(df_spkt, neu, xlims, sigma=25, n_trl=30, do_zscore=False, name2id=dict(), figsize=(), path=None):
+def plot_rate(df_spkt, neu, xlims, sigma=25, n_trl=30, do_zscore=False, id2name=dict(), figsize=(), path=None):
     '''Plot rates for given experiments and neurons
 
     Parameters
@@ -104,10 +108,10 @@ def plot_rate(df_spkt, neu, xlims, sigma=25, n_trl=30, do_zscore=False, name2id=
         number of trials to calculate the avg rate, by default 30
     do_score : bool, optional
         If True, zscore the firing rate for each neuron, by default False
-    name2id : dict, optional
-        Mapping betwen custon neuron names and database IDs, by default dict()
+    id2name : dict, optional
+        Mapping between database IDs and neuron types, by default dict()
     figsize : tuple, optional
-        dimension of the plot, passed to plt.subpolots
+        dimension of the plot, passed to plt.subplots
     path : str, optional
         Filename for saving the plot, by default None
     '''
@@ -122,6 +126,10 @@ def plot_rate(df_spkt, neu, xlims, sigma=25, n_trl=30, do_zscore=False, name2id=
     print('INFO: setting figsize to ({}, {})'.format(dx, dy))
 
     fig, axarr = plt.subplots(ncols=n_exp, squeeze=False, figsize=(dx, dy))
+
+    # Add names to the data frame
+    df_spkt['name'] = df_spkt['database_id'].map(lambda l: id2name.get(l, l))
+
     gr_exp = df_spkt.groupby('exp_name')
     
     bins = np.arange(*xlims, 1e-3)
@@ -135,8 +143,7 @@ def plot_rate(df_spkt, neu, xlims, sigma=25, n_trl=30, do_zscore=False, name2id=
         df_bin = pd.DataFrame()
 
         for n in neu:
-            idx = name2id.get(n, n)
-            idx = int(idx)
+            idx = int(n)
 
             try:
                 df_neu = gr_neu.get_group(idx)
@@ -157,7 +164,7 @@ def plot_rate(df_spkt, neu, xlims, sigma=25, n_trl=30, do_zscore=False, name2id=
                         't' : bins[:-1],
                         'r': y,
                         'trl': trl,
-                        'neu': n,
+                        'neu': id2name.get(n, n),
                     })
                     df_bin = pd.concat([df_bin, df], ignore_index=True)
 
@@ -165,7 +172,7 @@ def plot_rate(df_spkt, neu, xlims, sigma=25, n_trl=30, do_zscore=False, name2id=
                 df = pd.DataFrame(data={
                     't' : bins[:-1],
                     'r': 0,
-                    'neu': n,
+                    'neu': id2name.get(n, n),
                 })
                 df_bin = pd.concat([df_bin, df], ignore_index=True)
 
@@ -186,7 +193,7 @@ def plot_rate(df_spkt, neu, xlims, sigma=25, n_trl=30, do_zscore=False, name2id=
     if path:
         fig.savefig(path)
 
-def plot_rate_heatmap(df_spkt, neu, xlims, sigma=25, n_trl=30, do_zscore=False, exclude_stim=False, color_range=(None, None), name2id=dict(), figsize=(), path=None):
+def plot_rate_heatmap(df_spkt, neu, xlims, sigma=25, n_trl=30, do_zscore=False, exclude_stim=False, color_range=(None, None), id2name=dict(), figsize=(), path=None):
     '''Plot rates for given experiments and neurons in a heatmap
 
     Parameters
@@ -209,10 +216,10 @@ def plot_rate_heatmap(df_spkt, neu, xlims, sigma=25, n_trl=30, do_zscore=False, 
         If True, replace stimulated neurons with nan, by default False
     color_range : tuple, optional
         Values for min and max for the color map, by default (None, None)
-    name2id : dict, optional
-        Mapping betwen custon neuron names and database IDs, by default dict()
+    id2name : dict, optional
+        Mapping between database IDs and neuron types, by default dict()
     figsize : tuple, optional
-        dimension of the plot, passed to plt.subpolots
+        dimension of the plot, passed to plt.subplots
     path : str, optional
         Filename for saving the plot, by default None
     '''
@@ -226,6 +233,9 @@ def plot_rate_heatmap(df_spkt, neu, xlims, sigma=25, n_trl=30, do_zscore=False, 
     print('INFO: setting figsize to ({}, {})'.format(dx, dy))
 
     fig, axarr = plt.subplots(ncols=n_exp, squeeze=False, figsize=(dx, dy))
+
+    # Add names to the data frame
+    df_spkt['name'] = df_spkt['database_id'].map(lambda l: id2name.get(l, l))
     gr_exp = df_spkt.groupby('exp_name')
     
     bins = np.arange(*xlims, 1e-3)
@@ -251,8 +261,7 @@ def plot_rate_heatmap(df_spkt, neu, xlims, sigma=25, n_trl=30, do_zscore=False, 
 
         Z = []
         for n in neu:
-            idx = name2id.get(n, n)
-            idx = int(idx)
+            idx = int(n)
 
             try:
                 df_neu = gr_neu.get_group(idx)
@@ -280,7 +289,7 @@ def plot_rate_heatmap(df_spkt, neu, xlims, sigma=25, n_trl=30, do_zscore=False, 
         # TODO colorbar label and xlabel
 
         ax.set_yticks(y)
-        ax.set_yticklabels(neu)
+        ax.set_yticklabels([ id2name.get(n, n) for n in neu ])
 
         # formatting
         ax.set_title(e)
@@ -292,7 +301,7 @@ def plot_rate_heatmap(df_spkt, neu, xlims, sigma=25, n_trl=30, do_zscore=False, 
         fig.savefig(path)
 
 
-def firing_rate_matrix(df_rate, rate_change=False, scaling=.5, path=''):
+def firing_rate_matrix(df_rate, rate_change=False, scaling=.5, path='', id2name={}):
     '''Plot heatmap showing the firing rates of neurons in different experiments
  
     Parameters
@@ -305,7 +314,13 @@ def firing_rate_matrix(df_rate, rate_change=False, scaling=.5, path=''):
         Scales figure size, by default .5
     path : path-like, optional
         Filename for saving the plot, by default ''
+    id2name: dict
+        Mapping database IDs to neuron types, default {}
     '''
+    # Sort spike rates
+    df_rate.sort_values(by=df_rate.columns.to_list(), ascending=False, inplace=True)
+    # Rename index using id2name
+    df_rate.rename(id2name, inplace=True)
 
     # figure dimensions
     n_neu, n_exp = df_rate.shape
