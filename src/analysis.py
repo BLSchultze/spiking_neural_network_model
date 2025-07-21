@@ -177,3 +177,40 @@ def save_xls(df, path):
         for _, ws in w.sheets.items():
             ws.set_column(1, 1, 10, fmt)
             ws.freeze_panes(1, 1)
+
+
+
+def get_rate_continuous(df_spkt, neu, id2name=dict(), bins=20):
+    '''
+    
+    '''
+    
+    # Add names to the data frame
+    df_spkt['name'] = df_spkt['database_id'].map(lambda l: id2name.get(l, l))
+
+    spk_rates = {}
+    
+    for i, (e, df_exp) in enumerate(df_spkt.groupby('exp_name')):
+        # Group by database ID
+        gr_neu = df_exp.groupby('database_id')
+
+        # Iterate over the requested neurons
+        for j, n in enumerate(neu):
+            idx = int(n)
+            try:
+                # Get data for current neuron
+                df_neu = gr_neu.get_group(idx)
+                # Calculate inter-spike-intervals for all trials
+                spike_mat = np.hstack([ np.sort(df_trl['t']) for _, df_trl in df_neu.groupby('trial') ])
+                
+                if spike_mat.shape[0] > 0:
+                    # Calculate histogram
+                    hist, hist_edges = np.histogram(spike_mat, bins, density=True)
+                    spk_rates[n] = hist
+                else:
+                    spk_rates[n] = []
+
+            except KeyError:
+                pass
+    
+    return hist_edges, spk_rates
