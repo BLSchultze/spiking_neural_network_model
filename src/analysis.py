@@ -180,15 +180,15 @@ def save_xls(df, path):
 
 
 
-def get_rate_continuous(df_spkt, neu, id2name=dict(), bins=20):
+def get_rate_continuous(df_spkt, neu, bin_width=20, t0=0, tend=1):
     '''
     
     '''
-    
-    # Add names to the data frame
-    df_spkt['name'] = df_spkt['database_id'].map(lambda l: id2name.get(l, l))
+    # Make bin array
+    bins = np.arange(t0, tend, bin_width)
 
     spk_rates = {}
+    exp_names = []
     
     for i, (e, df_exp) in enumerate(df_spkt.groupby('exp_name')):
         # Group by database ID
@@ -200,17 +200,26 @@ def get_rate_continuous(df_spkt, neu, id2name=dict(), bins=20):
             try:
                 # Get data for current neuron
                 df_neu = gr_neu.get_group(idx)
-                # Calculate inter-spike-intervals for all trials
+                # 
                 spike_mat = np.hstack([ np.sort(df_trl['t']) for _, df_trl in df_neu.groupby('trial') ])
                 
                 if spike_mat.shape[0] > 0:
                     # Calculate histogram
-                    hist, hist_edges = np.histogram(spike_mat, bins, density=True)
-                    spk_rates[n] = hist
+                    hist, hist_edges = np.histogram(spike_mat, bins, density=False)
+                    # Convert to spikes per second
+                    hist = hist / bin_width / (df_spkt['trial'].max() + 1)
                 else:
-                    spk_rates[n] = []
+                    hist = np.zeros(bins.shape[0]-1)
 
             except KeyError:
+                hist = np.zeros(bins.shape[0]-1)
                 pass
+
+            if i > 0:
+                    spk_rates[n] = np.vstack([spk_rates[n], hist])
+            else:
+                spk_rates[n] = hist
+        
+        exp_names.append(e)
     
-    return hist_edges, spk_rates
+    return hist_edges, spk_rates, exp_names

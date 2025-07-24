@@ -437,3 +437,88 @@ def plot_isi_hist(df_spkt, neu, id2name=dict(), xlims=None, figsize=(), path=Non
 
     if path:
         fig.savefig(path)
+
+
+
+def plot_rates_single(df_spkt, neu, id2name=dict(), xlims=None, figsize=(), path=None, bin_width=20, t0=0, tend=1):
+    '''Plot inter-spike-intervals for given experiments and neurons
+
+    Parameters
+    ----------
+    df_spkt : pd.DataFrame
+        Each row contains a spike event
+    neu : list
+        List of database IDs as appearing in df_spkt.
+        `neu` can also contain custom neuron names, but in this case `name2id`
+        must be supplied
+    id2name : dict, optional
+        Mapping between database IDs and neuron types, by default dict()
+    xlims : tuple, optional
+        xlims for plot, by default None
+    figsize : tuple, optional
+        dimension of the plot, passed to plt.subpolots
+    path : str, optional
+        Filename for saving the plot, by default None
+    bins : int | array | list
+        bin count for the histogram or list/array with bin edges
+    '''
+
+    # Make bin array
+    bins = np.arange(t0, tend, bin_width)
+
+    # Get number of experiments and neurons to plot
+    exp = df_spkt.loc[:, 'exp_name'].unique()
+    n_exp, n_neu = len(exp), len(neu)
+
+    if not figsize:
+        figsize = (3*n_neu, 2*n_exp)
+
+    # New figure
+    fig, ax = plt.subplots(n_exp, n_neu, figsize=figsize)
+    
+    # Iterate over the experiments
+    for i, (e, df_exp) in enumerate(df_spkt.groupby('exp_name')):
+        # Group by database ID
+        gr_neu = df_exp.groupby('database_id')
+
+        # Iterate over the requested neurons
+        for j, n in enumerate(neu):
+            idx = int(n)
+            try:
+                # Get data for current neuron
+                df_neu = gr_neu.get_group(idx)
+                # Collect all spikes over all trials in one array
+                spike_train = np.hstack([ np.sort(df_trl['t']) for _, df_trl in df_neu.groupby('trial') ])
+                
+                if spike_train.shape[0] > 0:
+                    # Calculate histogram
+                    hist, hist_edges = np.histogram(spike_train, bins, density=False)
+                    # Convert to spikes per second
+                    hist = hist / bin_width / (df_spkt['trial'].max() + 1)
+                else:
+                    hist = np.zeros(bins.shape[0]-1)
+
+            except KeyError:
+                hist = np.zeros(bins.shape[0]-1)
+                pass
+            
+            # Plot spike rate (PSTH)
+            ax[i,j].plot(hist_edges[:-1], hist)
+    
+            # Add title in first row
+            if i == 0:
+                ax[i,j].set_title(id2name.get(n, n))
+            # Y-label in first column
+            if j == 0:
+                ax[i,j].set_ylabel(e + '\nspike rate [Hz]')
+            # Adjust x limits if requested
+            if xlims != None:
+                ax[i,j].set_xlim(xlims)
+                    
+    # X-label in last row
+    for cax in ax[-1]:
+        cax.set_xlabel('time [s]')
+    fig.tight_layout()
+
+    if path:
+        fig.savefig(path)
