@@ -80,24 +80,40 @@ params = {
 
 # Neurons to activate during experiment
 neurons = ['pMP2', 'TN1a']
-exp_name = 'act'
+exp_name = 'pMP2_TN1a_seq'
+
 # Set timing parameters
 stim_duration = 10
 inter_stim_duration = 10
 padding = 5
 
 ### Run the experiments
-for neuron in neurons:
-    # Make instructions
-    instructions = [(0, "stim", []), (padding, "stim", type_mancid_dict[neuron]), (padding+stim_duration, "stim_off", []), (2*padding+stim_duration, "end", [])]
-    # Run simulation
-    mod.run_exp(exp_name=f'{neuron}_{exp_name}', exp_inst=instructions, **run_exp_kw_args, params=params)
+# Make instructions
+instructions = [(0, "stim", [])]
+timer = padding
+# Make instructions
+for i,neuron in enumerate(neurons): 
+    # Append stimulation and stimulation end
+    instructions.append((timer, "stim", type_mancid_dict[neuron]))
+    timer += stim_duration
+    instructions.append((timer, "stim_off", []))
+    # After last stimulation only append a padding value
+    if i == len(neurons)-1:
+        timer += padding
+    else:
+        timer += stim_duration
+
+# Add end of experiment
+instructions.append((timer, "end", []))
+
+# Run the simulation
+mod.run_exp(exp_name=exp_name, exp_inst=instructions, **run_exp_kw_args, params=params)
 
 # Experiment duration
 duration = instructions[-1][0]   # [s]
 
 # Create paths from which to load results
-outputs = [ f'../results/manc_simulations/{neuron}_{exp_name}.parquet' for neuron in neurons ]
+outputs = [ f'../results/manc_simulations/{exp_name}.parquet' ]
 # Load spike times
 df_spkt = ana.load_exps(outputs)
 # List of neuron sto analyse
