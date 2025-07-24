@@ -2,8 +2,6 @@
 from src import (
     datahandler as dah,
     model as mod,
-    graphs as gra,
-    visualize as vis,
     analysis as ana,
 )
 
@@ -82,19 +80,31 @@ params = {
 
 # Neurons to activate during experiment
 neurons = ['pMP2', 'TN1a']
+exp_name = 'pMP2_TN1a_seq'
 
 ### Run the experiments
-for neuron in neurons:
-    # Make instructions
-    instructions = [(0, "stim", []), (2, "stim", type_mancid_dict[neuron]), (12, "stim_off", []), (22, "end", [])]
+# for neuron in neurons:
+#     # Make instructions
+#     instructions = [(0, "stim", []), (2, "stim", type_mancid_dict[neuron]), (12, "stim_off", []), (22, "end", [])]
 
-    mod.run_exp(exp_name=f'{neuron}_after_act', exp_inst=instructions, **run_exp_kw_args, params=params)
+#     mod.run_exp(exp_name=f'{neuron}_after_act', exp_inst=instructions, **run_exp_kw_args, params=params)
+
+# Make instructions
+instructions = [(0, "stim", []), 
+                (2, "stim", type_mancid_dict[neurons[0]]),
+                (12, "stim_off", []), 
+                (22, "stim", mancid_type_dict[neurons[1]]),
+                (32, "stim_off", []),
+                (34, "end", [])]
+
+mod.run_exp(exp_name=exp_name, exp_inst=instructions, **run_exp_kw_args, params=params)
 
 # Experiment duration
 duration = instructions[-1][0]   # [s]
 
 # Create paths from which to load results
-outputs = [ f'../results/manc_simulations/{neuron}_after_act.parquet' for neuron in neurons ]
+# outputs = [ f'../results/manc_simulations/{neuron}_after_act.parquet' for neuron in neurons ]
+outputs = [ f'../results/manc_simulations/{exp_name}.parquet' ]
 # Load spike times
 df_spkt = ana.load_exps(outputs)
 # List of neuron sto analyse
@@ -117,4 +127,4 @@ for key, val in cont_spike_rate.items():
 # Stack spike rates
 spk_rates = np.stack(spk_rates, axis=0)
 # Export spike rates
-np.savez('../results/manc_simulations/spk_rates.npz', spike_rates=spk_rates, neuron_ids=neuron_ids, exp_names=exp_names)
+np.savez(f'../results/manc_simulations/spk_rates_{exp_name}.npz', spike_rates=spk_rates, neuron_ids=neuron_ids, exp_names=exp_names)
